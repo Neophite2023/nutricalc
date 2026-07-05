@@ -1,0 +1,21 @@
+{
+  "name": "NutriCalc",
+  "short_name": "NutriCalc",
+  "description": "Lokalny archiv jedal a vypocet nutricnych hodnot.",
+  "id": ".",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "background_color": "#f6f2ea",
+  "theme_color": "#243026",
+  "orientation": "portrait",
+  "categories": ["health", "food", "utilities"],
+  "icons": [
+    {
+      "src": "icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
