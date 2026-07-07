@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { addNutrients, formatNumber, isoDate, sameLocalDate, sumMealItems } from "./calculations";
-import { clearFoods, deleteMeal, getAllFoods, getAllMeals, getSetting, putFoods, putMeal, setSetting } from "./db";
+import { clearFoods, deleteMeal, deleteWeight, getAllFoods, getAllMeals, getAllWeights, getSetting, putFoods, putMeal, putWeight, setSetting } from "./db";
 import { parseNutriDatabazeExport } from "./importer";
-import type { Food, Meal, MealItem, Nutrients } from "./types";
+import type { Food, Meal, MealItem, Nutrients, WeightEntry } from "./types";
 
-type Page = "today" | "add" | "history" | "import" | "settings";
+type Page = "today" | "add" | "history" | "import" | "weight" | "settings";
 
 type DraftItem = {
   food: Food;
@@ -16,6 +16,7 @@ const emptyTotals: Nutrients = { kcal: 0 };
 export function App() {
   const [foods, setFoods] = useState<Food[]>([]);
   const [meals, setMeals] = useState<Meal[]>([]);
+  const [weights, setWeights] = useState<WeightEntry[]>([]);
   const [page, setPage] = useState<Page>("today");
   const [selectedDate, setSelectedDate] = useState(isoDate());
   const [importMessage, setImportMessage] = useState("");
@@ -24,9 +25,10 @@ export function App() {
   const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
-    Promise.all([getAllFoods(), getAllMeals(), getSetting<number>("dailyTarget")]).then(([storedFoods, storedMeals, target]) => {
+    Promise.all([getAllFoods(), getAllMeals(), getAllWeights(), getSetting<number>("dailyTarget")]).then(([storedFoods, storedMeals, storedWeights, target]) => {
       setFoods(storedFoods);
       setMeals(storedMeals);
+      setWeights(storedWeights);
       if (target) {
         setDailyTarget(target);
       }
@@ -40,6 +42,10 @@ export function App() {
 
   async function refreshMeals() {
     setMeals(await getAllMeals());
+  }
+
+  async function refreshWeights() {
+    setWeights(await getAllWeights());
   }
 
   async function handleImport(file: File) {
@@ -92,6 +98,23 @@ export function App() {
     await refreshMeals();
   }
 
+  async function handleSaveWeight(measuredAt: string, kg: number) {
+    const now = new Date().toISOString();
+    await putWeight({
+      id: crypto.randomUUID(),
+      measuredAt,
+      kg: Math.round((kg + Number.EPSILON) * 10) / 10,
+      createdAt: now,
+      updatedAt: now,
+    });
+    await refreshWeights();
+  }
+
+  async function handleDeleteWeight(id: string) {
+    await deleteWeight(id);
+    await refreshWeights();
+  }
+
   async function handleTargetChange(value: number) {
     setDailyTarget(value);
     await setSetting("dailyTarget", value);
@@ -101,16 +124,21 @@ export function App() {
     const payload = {
       exportedAt: new Date().toISOString(),
       meals,
+      weights,
       settings: { dailyTarget },
     };
     downloadJson("nutricalc-archiv.json", payload);
   }
 
   async function importArchive(file: File) {
-    const payload = JSON.parse(await file.text()) as { meals?: Meal[]; settings?: { dailyTarget?: number } };
+    const payload = JSON.parse(await file.text()) as { meals?: Meal[]; weights?: WeightEntry[]; settings?: { dailyTarget?: number } };
     if (Array.isArray(payload.meals)) {
       await Promise.all(payload.meals.map((meal) => putMeal(meal)));
       await refreshMeals();
+    }
+    if (Array.isArray(payload.weights)) {
+      await Promise.all(payload.weights.map((weight) => putWeight(weight)));
+      await refreshWeights();
     }
     if (payload.settings?.dailyTarget) {
       await handleTargetChange(payload.settings.dailyTarget);
@@ -132,7 +160,7 @@ export function App() {
           <button className={page === "today" ? "active" : ""} onClick={() => setPage("today")}>Dnes</button>
           <button className={page === "add" ? "active" : ""} onClick={() => setPage("add")}>Pridat jedlo</button>
           <button className={page === "history" ? "active" : ""} onClick={() => setPage("history")}>Historia</button>
-          <button className={page === "import" ? "active" : ""} onClick={() => setPage("import")}>Import dat</button>
+          <button className={page === "weight" ? "active" : ""} onClick={() => setPage("weight")}>Vaha</button>
           <button className={page === "settings" ? "active" : ""} onClick={() => setPage("settings")}>Nastavenia</button>
         </nav>
 
@@ -161,6 +189,7 @@ export function App() {
             )}
             {page === "add" && <AddMealPage foods={foods} selectedDate={selectedDate} onSave={handleSaveMeal} onImport={() => setPage("import")} />}
             {page === "history" && <HistoryPage meals={meals} onDeleteMeal={handleDeleteMeal} />}
+            {page === "weight" && <WeightPage weights={weights} onSave={handleSaveWeight} onDelete={handleDeleteWeight} />}
             {page === "import" && (
               <ImportPage
                 sourceVersion={sourceVersion}
@@ -176,6 +205,7 @@ export function App() {
                 onTargetChange={handleTargetChange}
                 onExportArchive={exportArchive}
                 onImportArchive={importArchive}
+                onOpenImport={() => setPage("import")}
               />
             )}
           </>
@@ -374,6 +404,80 @@ function HistoryPage({ meals, onDeleteMeal }: { meals: Meal[]; onDeleteMeal: (id
   );
 }
 
+function WeightPage({ weights, onSave, onDelete }: { weights: WeightEntry[]; onSave: (measuredAt: string, kg: number) => void; onDelete: (id: string) => void }) {
+  const [measuredAt, setMeasuredAt] = useState(isoDate());
+  const [kg, setKg] = useState("");
+  const latest = weights[0];
+  const previous = weights[1];
+  const delta = latest && previous ? Math.round((latest.kg - previous.kg + Number.EPSILON) * 10) / 10 : undefined;
+
+  function saveWeight() {
+    const parsed = Number(kg.replace(",", "."));
+    if (!measuredAt || !Number.isFinite(parsed) || parsed <= 0) {
+      return;
+    }
+    onSave(measuredAt, parsed);
+    setKg("");
+  }
+
+  return (
+    <>
+      <header className="page-header">
+        <div>
+          <span className="eyebrow">Telo</span>
+          <h1>Vaha</h1>
+        </div>
+      </header>
+
+      <section className="summary-grid weight-summary">
+        <div className="metric primary">
+          <span>Posledna vaha</span>
+          <strong>{latest ? formatNumber(latest.kg, " kg") : "-"}</strong>
+          <small>{latest ? new Date(latest.measuredAt).toLocaleDateString("sk-SK", { dateStyle: "medium" }) : "Zatial bez zaznamu"}</small>
+        </div>
+        <Metric label="Zmena" value={delta} suffix=" kg" />
+      </section>
+
+      <section className="panel narrow">
+        <label>
+          Datum
+          <input type="date" value={measuredAt} onChange={(event) => setMeasuredAt(event.target.value)} />
+        </label>
+        <label>
+          Vaha v kg
+          <input inputMode="decimal" type="number" min="0" step="0.1" value={kg} onChange={(event) => setKg(event.target.value)} placeholder="82,4" />
+        </label>
+        <button onClick={saveWeight} disabled={!kg}>Ulozit vahu</button>
+      </section>
+
+      <section className="section-head">
+        <h2>Historia vahy</h2>
+      </section>
+      <WeightList weights={weights} onDelete={onDelete} />
+    </>
+  );
+}
+
+function WeightList({ weights, onDelete }: { weights: WeightEntry[]; onDelete: (id: string) => void }) {
+  if (weights.length === 0) {
+    return <section className="empty-state">Ziadne ulozene vahy.</section>;
+  }
+
+  return (
+    <div className="meal-list">
+      {weights.map((entry) => (
+        <article className="meal-card weight-card" key={entry.id}>
+          <div>
+            <h3>{formatNumber(entry.kg, " kg")}</h3>
+            <time>{new Date(entry.measuredAt).toLocaleDateString("sk-SK", { dateStyle: "medium" })}</time>
+          </div>
+          <button onClick={() => onDelete(entry.id)}>Odstranit</button>
+        </article>
+      ))}
+    </div>
+  );
+}
+
 function ImportPage(props: {
   sourceVersion: string;
   setSourceVersion: (value: string) => void;
@@ -419,6 +523,7 @@ function SettingsPage(props: {
   onTargetChange: (value: number) => void;
   onExportArchive: () => void;
   onImportArchive: (file: File) => void;
+  onOpenImport: () => void;
 }) {
   return (
     <>
@@ -433,6 +538,7 @@ function SettingsPage(props: {
           Denny kaloricky ciel
           <input type="number" min="0" value={props.dailyTarget} onChange={(event) => props.onTargetChange(Number(event.target.value))} />
         </label>
+        <button onClick={props.onOpenImport}>Importovat potraviny</button>
         <div className="actions">
           <button onClick={props.onExportArchive}>Exportovat archiv</button>
           <label className="button-like">

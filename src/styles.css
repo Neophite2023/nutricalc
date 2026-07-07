@@ -197,6 +197,10 @@ p {
   margin-bottom: 28px;
 }
 
+.weight-summary {
+  grid-template-columns: 1.4fr 1fr;
+}
+
 .metric {
   background: #fffdf8;
   border: 1px solid #e5ded0;
@@ -266,6 +270,18 @@ p {
   display: grid;
   gap: 14px;
   padding: 18px;
+}
+
+.weight-card {
+  align-items: center;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.weight-card time {
+  color: #746d60;
+  display: block;
+  font-size: 0.9rem;
+  margin-top: 4px;
 }
 
 .meal-top,
@@ -537,6 +553,7 @@ p {
   }
 
   .summary-grid,
+  .weight-summary,
   .editor-layout,
   .compact-metrics {
     grid-template-columns: 1fr;
@@ -551,12 +568,18 @@ p {
 
   .meal-top,
   .meal-footer,
-  .item-row {
+  .item-row,
+  .weight-card {
     align-items: flex-start;
     flex-direction: column;
   }
 
-  .meal-footer button {
+  .weight-card {
+    grid-template-columns: 1fr;
+  }
+
+  .meal-footer button,
+  .weight-card button {
     margin-left: 0;
     width: 100%;
   }

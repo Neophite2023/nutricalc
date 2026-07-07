@@ -1,7 +1,7 @@
-import type { Food, Meal, StoreName } from "./types";
+import type { Food, Meal, StoreName, WeightEntry } from "./types";
 
 const DB_NAME = "nutricalc";
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 let dbPromise: Promise<IDBDatabase> | undefined;
 
@@ -26,6 +26,10 @@ function openDb(): Promise<IDBDatabase> {
       }
       if (!db.objectStoreNames.contains("settings")) {
         db.createObjectStore("settings", { keyPath: "key" });
+      }
+      if (!db.objectStoreNames.contains("weights")) {
+        const weights = db.createObjectStore("weights", { keyPath: "id" });
+        weights.createIndex("measuredAt", "measuredAt", { unique: false });
       }
     };
 
@@ -83,6 +87,20 @@ export function putMeal(meal: Meal): Promise<void> {
 
 export function deleteMeal(id: string): Promise<void> {
   return transaction<undefined>("meals", "readwrite", (store) => store.delete(id) as IDBRequest<undefined>).then(() => undefined);
+}
+
+export function getAllWeights(): Promise<WeightEntry[]> {
+  return transaction<WeightEntry[]>("weights", "readonly", (store) => store.getAll()).then((weights) =>
+    weights.sort((a, b) => b.measuredAt.localeCompare(a.measuredAt))
+  );
+}
+
+export function putWeight(weight: WeightEntry): Promise<void> {
+  return transaction<IDBValidKey>("weights", "readwrite", (store) => store.put(weight)).then(() => undefined);
+}
+
+export function deleteWeight(id: string): Promise<void> {
+  return transaction<undefined>("weights", "readwrite", (store) => store.delete(id) as IDBRequest<undefined>).then(() => undefined);
 }
 
 export function getSetting<T>(key: string): Promise<T | undefined> {

@@ -49,6 +49,14 @@ export type Meal = {
   updatedAt: string;
 };
 
+export type WeightEntry = {
+  id: string;
+  measuredAt: string;
+  kg: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type ImportResult = {
   foods: Food[];
   skippedRows: number;
@@ -56,4 +64,4 @@ export type ImportResult = {
   diagnostics?: string;
 };
 
-export type StoreName = "foods" | "meals" | "settings";
+export type StoreName = "foods" | "meals" | "settings" | "weights";

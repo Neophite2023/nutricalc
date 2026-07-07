@@ -1,4 +1,4 @@
-const CACHE_NAME = "nutricalc-v12";
+const CACHE_NAME = "nutricalc-v13";
 const APP_SHELL = [
   "./",
   "./index.html",
