@@ -471,7 +471,7 @@ p {
     grid-template-columns: repeat(5, minmax(0, 1fr));
     min-width: 0;
     overflow: hidden;
-    padding: 8px calc(8px + env(safe-area-inset-right)) calc(8px + env(safe-area-inset-bottom)) calc(8px + env(safe-area-inset-left));
+    padding: 4px calc(8px + env(safe-area-inset-right)) calc(4px + env(safe-area-inset-bottom)) calc(8px + env(safe-area-inset-left));
     position: relative;
     width: 100%;
     z-index: 30;
@@ -481,7 +481,7 @@ p {
     font-size: 0.78rem;
     font-weight: 750;
     justify-content: center;
-    min-height: 48px;
+    min-height: 28px;
     overflow: hidden;
     padding: 0 6px;
     text-align: center;
