@@ -423,6 +423,7 @@ p {
   html,
   body,
   #root {
+    background: #253026;
     height: 100%;
     min-height: 100%;
     overflow: hidden;
@@ -480,6 +481,7 @@ p {
   }
 
   .main {
+    background: #f6f2ea;
     grid-row: 2;
     min-height: 0;
     overscroll-behavior: contain;
