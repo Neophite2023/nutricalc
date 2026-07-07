@@ -479,6 +479,7 @@ p {
 
   .nav button {
     font-size: 0.78rem;
+    font-weight: 750;
     justify-content: center;
     min-height: 48px;
     overflow: hidden;
